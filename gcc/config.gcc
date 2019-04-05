@@ -722,6 +722,18 @@ x86_cpus="generic intel"
 
 # Common parts for widely ported systems.
 case ${target} in
+*-*-serenity*)
+  gas=yes
+  gnu_ld=yes
+  default_use_cxa_atexit=yes
+  extra_options="${extra_options} serenity.opt"
+  tmake_file="t-slibgcc"
+  case ${target} in
+    aarch64*-* | riscv64-* | x86_64-*)
+      default_gnu_indirect_function=yes
+      ;;
+  esac
+  ;;
 *-*-darwin*)
   tmake_file="t-darwin "
   tm_file="${tm_file} darwin.h"
@@ -1189,6 +1201,17 @@ case ${target} in
 esac
 
 case ${target} in
+x86_64-*-serenity*)
+	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h serenity.h i386/serenity.h"
+	;;
+aarch64*-*-serenity*)
+	tm_file="${tm_file} elfos.h glibc-stdint.h aarch64/aarch64-elf.h serenity.h"
+	tmake_file="${tmake_file} aarch64/t-aarch64"
+	;;
+riscv64-*-serenity*)
+	tm_file="${tm_file} elfos.h glibc-stdint.h riscv/elf.h serenity.h"
+	tmake_file="${tmake_file} riscv/t-riscv"
+	;;
 aarch64*-*-elf | aarch64*-*-fuchsia* | aarch64*-*-rtems*)
 	tm_file="${tm_file} elfos.h newlib-stdint.h"
 	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-elf-raw.h"
