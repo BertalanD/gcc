@@ -297,6 +297,9 @@ case "${host_os}" in
     # Use libatomic if necessary and avoid libstdc++ specific atomicity support
     atomicity_dir="cpu/generic/atomicity_builtins"
     ;;
+  serenity*)
+    os_include_dir="os/newlib"
+    ;;
   solaris2*)
     os_include_dir="os/solaris"
     ;;

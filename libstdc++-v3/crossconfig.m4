@@ -9,7 +9,7 @@ case "${host}" in
     # This is a freestanding configuration; there is nothing to do here.
     ;;
 
-  avr*-*-*)
+  avr*-*-* | *serenity*)
     AC_DEFINE(HAVE_ACOSF)
     AC_DEFINE(HAVE_ASINF)
     AC_DEFINE(HAVE_ATAN2F)

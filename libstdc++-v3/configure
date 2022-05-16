@@ -12003,6 +12003,11 @@ else
     lt_cv_dlopen_libs=
     ;;
 
+  serenity*)
+    lt_cv_dlopen="dlopen"
+    lt_cv_dlopen_libs=""
+    ;;
+
   darwin*)
   # if libdl is installed we need to link against it
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dlopen in -ldl" >&5
@@ -16679,7 +16684,7 @@ fi
       dragonfly* | freebsd*)
 	enable_clocale_flag=dragonfly
 	;;
-      openbsd*)
+      openbsd* | serenity*)
 	enable_clocale_flag=newlib
 	;;
       *)
@@ -21374,7 +21379,7 @@ fi
         ac_has_nanosleep=yes
         ac_has_sched_yield=yes
         ;;
-      freebsd*|netbsd*|dragonfly*|rtems*)
+      freebsd*|netbsd*|dragonfly*|rtems*|serenity*)
         ac_has_clock_monotonic=yes
         ac_has_clock_realtime=yes
         ac_has_nanosleep=yes
@@ -28620,7 +28625,7 @@ case "${host}" in
     # This is a freestanding configuration; there is nothing to do here.
     ;;
 
-  avr*-*-*)
+  avr*-*-* | *serenity*)
     $as_echo "#define HAVE_ACOSF 1" >>confdefs.h
 
     $as_echo "#define HAVE_ASINF 1" >>confdefs.h

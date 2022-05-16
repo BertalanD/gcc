@@ -1792,7 +1792,7 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
         ac_has_nanosleep=yes
         ac_has_sched_yield=yes
         ;;
-      freebsd*|netbsd*|dragonfly*|rtems*)
+      freebsd*|netbsd*|dragonfly*|rtems*|serenity*)
         ac_has_clock_monotonic=yes
         ac_has_clock_realtime=yes
         ac_has_nanosleep=yes
@@ -2807,7 +2807,7 @@ AC_DEFUN([GLIBCXX_ENABLE_CLOCALE], [
       dragonfly* | freebsd*)
 	enable_clocale_flag=dragonfly
 	;;
-      openbsd*)
+      openbsd* | serenity*)
 	enable_clocale_flag=newlib
 	;;
       *)
