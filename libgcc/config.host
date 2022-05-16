@@ -1356,6 +1356,11 @@ riscv*-*-freebsd*)
 	tmake_file="${tmake_file} riscv/t-crtstuff riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address} t-slibgcc-libgcc"
 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
 	;;
+riscvv64-*-serenity*)
+	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
+	tmake_file="$tmake_file riscv/t-softfp64 t-softfp riscv/t-elf riscv/t-elf64 t-slibgcc-libgcc t-eh-dw2-dip"
+	tmake_file="$tmake_file riscv/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-slibgcc-gld-nover"
+	;;
 riscv*-*-*)
 	tmake_file="${tmake_file} riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address}"
 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
@@ -1568,6 +1573,22 @@ m32c-*-elf*)
 nvptx-*)
 	tmake_file="$tmake_file nvptx/t-nvptx"
 	extra_parts="crt0.o"
+	;;
+i[34567]86-*-serenity*)
+	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
+	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
+	;;
+x86_64-*-serenity*)
+	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
+	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc t-eh-dw2-dip"
+	;;
+aarch64-*-serenity*)
+	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
+	extra_parts="$extra_parts crtfastmath.o"
+	tmake_file="$tmake_file ${cpu_type}/t-aarch64"
+	tmake_file="$tmake_file ${cpu_type}/t-lse t-slibgcc t-slibgcc-libgcc t-slibgcc-gld-nover"
+	tmake_file="$tmake_file ${cpu_type}/t-softfp t-softfp t-crtfm"
+	md_unwind_header=aarch64/aarch64-unwind.h
 	;;
 *)
 	echo "*** Configuration ${host} not supported" 1>&2

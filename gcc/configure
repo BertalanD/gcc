@@ -33652,6 +33652,9 @@ case "$target" in
   *-linux-musl*)
     gcc_cv_target_dl_iterate_phdr=yes
     ;;
+  *-serenity*)
+    gcc_cv_target_dl_iterate_phdr=yes
+    ;;
 esac
 
 if test x$gcc_cv_target_dl_iterate_phdr = xyes; then
