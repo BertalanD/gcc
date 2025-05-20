@@ -122,6 +122,7 @@ vec<tree, va_gc> *unemitted_tinfo_decls;
 static GTY (()) vec<tinfo_s, va_gc> *tinfo_descs;
 
 static tree tinfo_name (tree, bool);
+static tree build_dynamic_cast_node (void);
 static tree build_dynamic_cast_1 (location_t, tree, tree, tsubst_flags_t);
 static tree throw_bad_cast (void);
 static tree throw_bad_typeid (void);
@@ -559,6 +560,36 @@ build_if_nonnull (tree test, tree result, tsubst_flags_t complain)
   return cond;
 }
 
+static tree
+build_dynamic_cast_node (void)
+{
+  if (dynamic_cast_node)
+    return dynamic_cast_node;
+
+  unsigned flags = push_abi_namespace ();
+  tree tinfo_ptr = xref_tag (class_type, get_identifier ("__class_type_info"));
+  tinfo_ptr = cp_build_qualified_type (tinfo_ptr, TYPE_QUAL_CONST);
+  tinfo_ptr = build_pointer_type (tinfo_ptr);
+
+  const char *fn_name = "__dynamic_cast";
+  /* void *() (void const *, __class_type_info const *,
+	       __class_type_info const *, ptrdiff_t)  */
+  tree fn_type
+    = build_function_type_list (ptr_type_node, const_ptr_type_node, tinfo_ptr,
+				 tinfo_ptr, ptrdiff_type_node, NULL_TREE);
+
+  tree dcast_fn = build_library_fn_ptr (fn_name, fn_type,
+					 ECF_LEAF | ECF_PURE | ECF_NOTHROW);
+  /* As with __cxa_atexit in get_atexit_node.  */
+  DECL_CONTEXT (dcast_fn) = FROB_CONTEXT (current_namespace);
+  DECL_SOURCE_LOCATION (dcast_fn) = BUILTINS_LOCATION;
+  dcast_fn = pushdecl (dcast_fn, /*hiding=*/true);
+  pop_abi_namespace (flags);
+  dynamic_cast_node = dcast_fn;
+
+  return dynamic_cast_node;
+}
+
 /* Execute a dynamic cast, as described in section 5.2.6 of the 9/93 working
    paper.  */
 
@@ -568,7 +599,6 @@ build_dynamic_cast_1 (location_t loc, tree type, tree expr,
 {
   enum tree_code tc = TREE_CODE (type);
   tree exprtype;
-  tree dcast_fn;
   tree old_expr = expr;
   const char *errstr = NULL;
 
@@ -694,8 +724,7 @@ build_dynamic_cast_1 (location_t loc, tree type, tree expr,
       else
 	{
 	  tree retval;
-	  tree result, td2, td3;
-	  tree elems[4];
+	  tree result;
 	  tree static_type, target_type, boff;
 
 	  /* If we got here, we can't convert statically.  Therefore,
@@ -742,14 +771,6 @@ build_dynamic_cast_1 (location_t loc, tree type, tree expr,
 
 	  target_type = TYPE_MAIN_VARIANT (TREE_TYPE (type));
 	  static_type = TYPE_MAIN_VARIANT (TREE_TYPE (exprtype));
-	  td2 = get_tinfo_decl (target_type);
-	  if (!mark_used (td2, complain) && !(complain & tf_error))
-	    return error_mark_node;
-	  td2 = cp_build_addr_expr (td2, complain);
-	  td3 = get_tinfo_decl (static_type);
-	  if (!mark_used (td3, complain) && !(complain & tf_error))
-	    return error_mark_node;
-	  td3 = cp_build_addr_expr (td3, complain);
 
 	  /* Determine how T and V are related.  */
 	  boff = dcast_base_hint (static_type, target_type);
@@ -761,39 +782,54 @@ build_dynamic_cast_1 (location_t loc, tree type, tree expr,
 	  if (tc == REFERENCE_TYPE)
 	    expr1 = cp_build_addr_expr (expr1, complain);
 
-	  elems[0] = expr1;
-	  elems[1] = td3;
-	  elems[2] = td2;
-	  elems[3] = boff;
-
-	  dcast_fn = dynamic_cast_node;
-	  if (!dcast_fn)
+	  /* If the target is a final class, and the static type is a unique
+	     non-virtual base of it, we can directly compare the vptr with the
+	     corresponding vtable address.  */
+	  if (flag_assume_unique_vtables && CLASSTYPE_FINAL (target_type)
+	      && int_cst_value (boff) >= 0)
 	    {
-	      unsigned flags = push_abi_namespace ();
-	      tree tinfo_ptr = xref_tag (class_type,
-					 get_identifier ("__class_type_info"));
-	      tinfo_ptr = cp_build_qualified_type (tinfo_ptr, TYPE_QUAL_CONST);
-	      tinfo_ptr = build_pointer_type (tinfo_ptr);
+	      tree binfo = lookup_base (target_type, static_type, ba_check,
+					NULL, complain);
+	      if (!binfo || binfo == error_mark_node)
+		return error_mark_node;
 
-	      const char *fn_name = "__dynamic_cast";
-	      /* void *() (void const *, __class_type_info const *,
-		           __class_type_info const *, ptrdiff_t)  */
-	      tree fn_type = (build_function_type_list
-			      (ptr_type_node, const_ptr_type_node,
-			       tinfo_ptr, tinfo_ptr, ptrdiff_type_node,
-			       NULL_TREE));
-	      dcast_fn = (build_library_fn_ptr
-			  (fn_name, fn_type, ECF_LEAF | ECF_PURE | ECF_NOTHROW));
-	      /* As with __cxa_atexit in get_atexit_node.  */
-	      DECL_CONTEXT (dcast_fn) = FROB_CONTEXT (current_namespace);
-	      DECL_SOURCE_LOCATION (dcast_fn) = BUILTINS_LOCATION;
-	      dcast_fn = pushdecl (dcast_fn, /*hiding=*/true);
-	      pop_abi_namespace (flags);
-	      dynamic_cast_node = dcast_fn;
+	      tree target_vtbl = build_vtbl_address (
+		BINFO_VTABLE (binfo) ? binfo : TYPE_BINFO (target_type));
+	      tree expr_vtbl
+		= build_vfield_ref (cp_build_fold_indirect_ref (expr),
+				    static_type);
+
+	      tree cmp
+		= build2 (EQ_EXPR, boolean_type_node, target_vtbl, expr_vtbl);
+
+	      /* Effectively do a base-to-derived static_cast but without vptr
+		 sanitizer checks.  */
+	      tree converted = build_base_path (MINUS_EXPR, expr1, binfo,
+						/*nonnull=*/false, complain);
+
+	      result = build3 (COND_EXPR, ptr_type_node, cmp, converted,
+			       nullptr_node);
 	    }
-	  if (dcast_fn == error_mark_node)
-	    return error_mark_node;
-	  result = build_cxx_call (dcast_fn, 4, elems, complain);
+	  else
+	    {
+	      tree td2 = get_tinfo_decl (target_type);
+	      if (!mark_used (td2, complain) && !(complain & tf_error))
+		return error_mark_node;
+	      td2 = cp_build_addr_expr (td2, complain);
+
+	      tree td3 = get_tinfo_decl (static_type);
+	      if (!mark_used (td3, complain) && !(complain & tf_error))
+		return error_mark_node;
+	      td3 = cp_build_addr_expr (td3, complain);
+
+	      tree elems[4] = { expr1, td3, td2, boff };
+
+	      tree dcast_fn = build_dynamic_cast_node ();
+	      if (dcast_fn == error_mark_node)
+		return error_mark_node;
+	      result = build_cxx_call (dcast_fn, 4, elems, complain);
+	    }
+
 	  SET_EXPR_LOCATION (result, loc);
 
 	  if (tc == REFERENCE_TYPE)

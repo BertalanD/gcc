@@ -1703,6 +1703,10 @@ fassume-sane-operators-new-delete
 C++ ObjC++ Optimization Var(flag_assume_sane_operators_new_delete) Init(1)
 Assume C++ replaceable global operators new, new[], delete, delete[] don't read or write visible global state.
 
+fassume-unique-vtables
+C++ ObjC++ Optimization Var(flag_assume_unique_vtables) Init(0)
+Assume that each class type has a unique vtable address across the entire program.
+
 ; Define extra predefined macros for use in libgcc.
 fbuilding-libgcc
 C ObjC C++ ObjC++ Undocumented Var(flag_building_libgcc)
